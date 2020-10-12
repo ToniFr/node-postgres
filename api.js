@@ -1,3 +1,12 @@
+const Pool = require('pg').Pool;
+const pool = new Pool({
+  user: 'moviefan',
+  host: 'localhost',
+  database: 'movies',
+  password: 'password',
+  port: 5432
+});
+
 const inMemoryHorrors = [
   {
     name: 'The Hills Have Eyes',
@@ -14,28 +23,68 @@ const inMemoryHorrors = [
 ];
 
 const getAllHorrors = async (request, response) => {
-  response.status(200).json(inMemoryHorrors);
+  if (request.treatment == 'on')
+    pool.query('SELECT * FROM horrors ORDER BY rating ASC', (error, results) => {
+      response.status(200).json(results.rows);
+    });
+  else if (request.treatment == 'off')
+    response.status(200).json(inMemoryHorrors);
+  else
+    response.status(200).json(inMemoryHorrors);
 };
 
 const getHorrorById = (request, response) => {
-  response.status(200).json(inMemoryHorrors[0]);
+  const id = parseInt(request.params.id);
+  if (request.treatment == 'on')
+    pool.query('SELECT * FROM horrors WHERE id = $1', [id], (error, results) => {
+      response.status(200).json(results.rows);
+    });
+  else if (request.treatment == 'off')
+    response.status(200).json(inMemoryHorrors[0]);
+  else
+    response.status(200).json(inMemoryHorrors[0]);
 };
 
 const addHorror = async (request, response) => {
   const { name, rating } = request.body;
-  inMemoryHorrors.push({ name, rating });
-  response.status(201).send(`Horror added successfuly.`);
+  console.log("name, rating", name, rating)
+  if (request.treatment == 'on')
+    pool.query('INSERT INTO horrors (name, rating) VALUES ($1, $2)', [name, rating], (error, results) => {
+      response.status(201).send(`Horror added successfuly.`);
+    });
+  else {
+    inMemoryHorrors.push({ name, rating });
+    response.status(201).send(`Horror added successfuly.`);
+  }
 };
 
 const updateHorror = (request, response) => {
+  const id = parseInt(request.params.id);
   const { name, rating } = request.body;
-  inMemoryHorrors[0] = { name, rating };
-  response.status(200).send(`First horror in list is updated.`);
+
+  if (request.treatment == 'on')
+    pool.query(
+      'UPDATE horrors SET name = $1, rating = $2 WHERE id = $3', [name, rating, id], (error, results) => {
+        response.status(200).send(`Horror modified with ID: ${id}`);
+      }
+    );
+  else {
+    inMemoryHorrors[0] = { name, rating };
+    response.status(200).send(`Horror modified with ID: ${id}`);
+  }
 };
 
 const deleteHorror = (request, response) => {
-  inMemoryHorrors.shift();
-  response.status(200).send(`First horror in list is deleted.`);
+  const id = parseInt(request.params.id);
+
+  if (request.treatment == 'on')
+    pool.query('DELETE FROM horrors WHERE id = $1', [id], (error, results) => {
+      response.status(200).send(`Horror deleted with ID: ${id}`);
+    });
+  else {
+    inMemoryHorrors.shift();
+    response.status(200).send(`Horror deleted with ID: ${id}`);
+  }
 };
 
 module.exports = {
